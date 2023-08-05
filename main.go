@@ -41,7 +41,6 @@ func main() {
 	}
 
 	// ハンドラの登録
-	http.HandleFunc("/", helloHandler)
 	http.HandleFunc("/callback", lineHandler)
 
 	fmt.Println("http://localhost:8080 で起動中...")
@@ -49,9 +48,13 @@ func main() {
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }
 
-func helloHandler(w http.ResponseWriter, r *http.Request) {
-	msg := "Hello World!!!!"
-	fmt.Fprintf(w, msg)
+func choiceComponent(c Choice) *linebot.ButtonComponent {
+	return &linebot.ButtonComponent{
+		Type: linebot.FlexComponentTypeButton,
+		Style: linebot.FlexButtonStyleTypeLink,
+		// PostbackAction(label, data, text, displayText)
+		Action: linebot.NewPostbackAction(c.Simo, c.Correct, "", ""),
+	}
 }
 
 func lineHandler(w http.ResponseWriter, r *http.Request) {
@@ -87,16 +90,8 @@ func lineHandler(w http.ResponseWriter, r *http.Request) {
 		fmt.Println("JSONデータの解析に失敗しました:", err)
 		return
 	}
-
-
-
-
 	// ===============
 	// ===============
-
-	fmt.Println(len(masterData))
-	fmt.Println("=== ===")
-
 	// リクエストからBOTのイベントを取得
 	events, err := bot.ParseRequest(r)
 	if err != nil {
@@ -112,7 +107,7 @@ func lineHandler(w http.ResponseWriter, r *http.Request) {
 		// イベントがメッセージの受信だった場合
 		if event.Type == linebot.EventTypeMessage {
 			switch message := event.Message.(type) {
-			// メッセージがテキスト形式の場合
+			// 設問メッセージ
 			case *linebot.TextMessage:
 				switch message.Text {
 				case "スタート", "次へ", "asd":
@@ -139,7 +134,6 @@ func lineHandler(w http.ResponseWriter, r *http.Request) {
 					// シードを設定
 					source := rand.NewSource(time.Now().UnixNano())
 					rand.New(source)
-
 					rand.Shuffle(len(choices), func(i, j int) {
 						choices[i], choices[j] = choices[j], choices[i]
 					})
@@ -175,27 +169,10 @@ func lineHandler(w http.ResponseWriter, r *http.Request) {
 								Layout: linebot.FlexBoxLayoutTypeVertical,
 								Spacing: linebot.FlexComponentSpacingTypeSm,
 								Contents: []linebot.FlexComponent{
-									&linebot.ButtonComponent{
-										Type: linebot.FlexComponentTypeButton,
-										Style: linebot.FlexButtonStyleTypeLink,
-										// PostbackAction(label, data, text, displayText)
-										Action: linebot.NewPostbackAction(choices[0].Simo, choices[0].Correct, "", ""),
-									},
-									&linebot.ButtonComponent{
-										Type: linebot.FlexComponentTypeButton,
-										Style: linebot.FlexButtonStyleTypeLink,
-										Action: linebot.NewPostbackAction(choices[1].Simo, choices[1].Correct, "", ""),
-									},
-									&linebot.ButtonComponent{
-										Type: linebot.FlexComponentTypeButton,
-										Style: linebot.FlexButtonStyleTypeLink,
-										Action: linebot.NewPostbackAction(choices[2].Simo, choices[2].Correct, "", ""),
-									},
-									&linebot.ButtonComponent{
-										Type: linebot.FlexComponentTypeButton,
-										Style: linebot.FlexButtonStyleTypeLink,
-										Action: linebot.NewPostbackAction(choices[3].Simo, choices[3].Correct, "", ""),
-									},
+									choiceComponent(choices[0]),
+									choiceComponent(choices[1]),
+									choiceComponent(choices[2]),
+									choiceComponent(choices[3]),
 								},
 							},
 						},
@@ -204,205 +181,45 @@ func lineHandler(w http.ResponseWriter, r *http.Request) {
 					if err != nil {
 						log.Print(err)
 					}
-
-
-
-				case "as":
-				resp := linebot.NewFlexMessage(
-					"this is a flex message",
-					&linebot.BubbleContainer{
-						Type: linebot.FlexContainerTypeBubble,
-						Hero: &linebot.ImageComponent{
-							Type:        "image",
-							URL:         masterData[2].Image,
-							Size:        "4xl",
-							AspectRatio: "2:3",
-							AspectMode:  "cover",
-						},
-						Body: &linebot.BoxComponent{
-							Type:   "box",
-							Layout: "vertical",
-							Contents: []linebot.FlexComponent{
-								&linebot.TextComponent{
-									Type:   "text",
-									Text:   "正解！",
-									Weight: "bold",
-									Size:   "xl",
-									Align: "center",
-								},
-								&linebot.BoxComponent{
-									Type:     "box",
-									Layout:   "vertical",
-									Margin:   "md",
-									Spacing:  "sm",
-									Contents: []linebot.FlexComponent{
-										&linebot.TextComponent{
-											Type:   "text",
-											Text:   "作者：〇〇",
-											Wrap:   true,
-											Color:  "#666666",
-											Size:   "sm",
-										},
-									},
-								},
-							},
-						},
-						Footer: &linebot.BoxComponent{
-							Type:    "box",
-							Layout:  "vertical",
-							Spacing: "sm",
-							Contents: []linebot.FlexComponent{
-								&linebot.ButtonComponent{
-									Type:  "button",
-									Style: "link",
-									Height: "sm",
-									Action: linebot.NewMessageAction("次の問題", "flex"),
-								},
-								&linebot.ButtonComponent{
-									Type:  "button",
-									Style: "link",
-									Height: "sm",
-									Action: linebot.NewMessageAction("クイズをやめる", "bye"),
-								},
-								&linebot.BoxComponent{
-									Type: "box",
-									Layout: "vertical",
-									Contents: []linebot.FlexComponent{},
-									Margin: "sm",
-								},
-							},
-						},
-					},
-				)
-				_, err = bot.ReplyMessage(event.ReplyToken, resp).Do()
-				if err != nil {
-					log.Print(err)
-				}
 				}
 			}
-		// 正解
 		}	else if event.Type == linebot.EventTypePostback {
-			answerStr := event.Postback.Data
-			// 0~9と100?のとき判別できない
-			pattern1 := `^[0-9]{1}$`
-			pattern2 := `^[0-9]{2}$`
-			pattern3 := `^false[0-9]{1}$`
-			pattern4 := `^false[0-9]{2}$`
-			// 正規表現のコンパイル
-			regExp1, err := regexp.Compile(pattern1)
-			if err != nil {
-				fmt.Println("正規表現のコンパイルエラー:", err)
-				return
-			}
-			regExp2, err := regexp.Compile(pattern2)
-			if err != nil {
-				fmt.Println("正規表現のコンパイルエラー:", err)
-				return
-			}
-			regExp3, err := regexp.Compile(pattern3)
-			if err != nil {
-				fmt.Println("正規表現のコンパイルエラー:", err)
-				return
-			}
-			regExp4, err := regexp.Compile(pattern4)
-			if err != nil {
-				fmt.Println("正規表現のコンパイルエラー:", err)
-				return
-			}
+			answerTypes := []string{`^[0-9]{1}$`, `^[0-9]{2}$`, `^false[0-9]{1}$`, `^false[0-9]{2}$`}
+			// *regexp.Regexp は、regexp パッケージに含まれる Regexp 型へのポインタ
+			var regexps []*regexp.Regexp
 
+			for _, pattern := range answerTypes {
+				regExp, err := regexp.Compile(pattern)
+				if err != nil {
+					fmt.Println("正規表現のコンパイルエラー:", err)
+					return
+				}
+				regexps = append(regexps, regExp)
+			}
+			
+			// 最終的に消す
 			fmt.Println(event.Postback.Data, ":", reflect.TypeOf(event.Postback.Data))
-
-
+			
+			answerStr := event.Postback.Data
 			// はずれ
-			if regExp3.MatchString(answerStr) || regExp4.MatchString(answerStr) {
-				fmt.Println("JSONファイル")
+			if regexps[2].MatchString(answerStr) || regexps[3].MatchString(answerStr) {
 				answerNum, err := strconv.Atoi(answerStr[5:])
 				if err != nil {
 					fmt.Println("変換エラー:", err)
 					return
 				}
-
 				answerWaka := masterData[answerNum - 1]
 
 				resp := linebot.NewFlexMessage(
 					"this is a flex message",
-					&linebot.BubbleContainer{
-						Type: linebot.FlexContainerTypeBubble,
-						Body: &linebot.BoxComponent{
-							Type:   "box",
-							Layout: "vertical",
-							Contents: []linebot.FlexComponent{
-								&linebot.TextComponent{
-									Type:   "text",
-									Text:   "残念…",
-									Weight: "bold",
-									Size:   "xl",
-									Align: "center",
-								},
-								&linebot.BoxComponent{
-									Type:     "box",
-									Layout:   "vertical",
-									Margin:   "md",
-									Spacing:  "sm",
-									Contents: []linebot.FlexComponent{
-										&linebot.TextComponent{
-											Type:   "text",
-											Text:   "上の句：" + answerWaka.Kami,
-											Wrap:   true,
-											Color:  "#666666",
-											Size:   "sm",
-										},
-										&linebot.TextComponent{
-											Type:   "text",
-											Text:   "下の句：" + answerWaka.Simo,
-											Wrap:   true,
-											Color:  "#666666",
-											Size:   "sm",
-										},
-										&linebot.TextComponent{
-											Type:   "text",
-											Text:   "作者：" + answerWaka.Author,
-											Wrap:   true,
-											Color:  "#666666",
-											Size:   "sm",
-										},
-									},
-								},
-							},
-						},
-						Footer: &linebot.BoxComponent{
-							Type:   linebot.FlexComponentTypeBox,
-							Layout: linebot.FlexBoxLayoutTypeVertical,
-							Spacing: linebot.FlexComponentSpacingTypeSm,
-							Contents: []linebot.FlexComponent{
-								&linebot.ButtonComponent{
-									Type:  "button",
-									Style: "link",
-									Height: "sm",
-									Action: linebot.NewMessageAction("次の問題", "次へ"),
-								},
-								&linebot.ButtonComponent{
-									Type:  "button",
-									Style: "link",
-									Height: "sm",
-									Action: linebot.NewMessageAction("クイズをやめる", "bye"),
-								},
-							},
-						},
-					},
+					FalseMessage(answerWaka),
 				)
 				
 				if _, err = bot.ReplyMessage(event.ReplyToken, resp).Do(); err != nil {
 					log.Print(err)
 				}
-
-
-
-			} else if regExp1.MatchString(answerStr) || regExp2.MatchString(answerStr) {
-				fmt.Println(len(masterData))
-				fmt.Println("=== ===")
-				fmt.Println("seikai")
-
+			// 正解
+			} else if regexps[0].MatchString(answerStr) || regexps[1].MatchString(answerStr) {
 				fmt.Println(answerStr)
 
 				answerNum, err := strconv.Atoi(answerStr)
@@ -413,65 +230,9 @@ func lineHandler(w http.ResponseWriter, r *http.Request) {
 				answerWaka := masterData[answerNum - 1]
 				resp := linebot.NewFlexMessage(
 					"this is a flex message",
-					&linebot.BubbleContainer{
-						Type: linebot.FlexContainerTypeBubble,
-						Hero: &linebot.ImageComponent{
-							Type:        "image",
-							URL:         answerWaka.Image,
-							Size:        "4xl",
-							AspectRatio: "2:3",
-							AspectMode:  "cover",
-						},
-						Body: &linebot.BoxComponent{
-							Type:   "box",
-							Layout: "vertical",
-							Contents: []linebot.FlexComponent{
-								&linebot.TextComponent{
-									Type:   "text",
-									Text:   "正解！",
-									Weight: "bold",
-									Size:   "xl",
-									Align: "center",
-								},
-								&linebot.BoxComponent{
-									Type:     "box",
-									Layout:   "vertical",
-									Margin:   "md",
-									Spacing:  "sm",
-									Contents: []linebot.FlexComponent{
-										&linebot.TextComponent{
-											Type:   "text",
-											Text:   "作者：" + answerWaka.Author,
-											Wrap:   true,
-											Color:  "#666666",
-											Size:   "sm",
-										},
-									},
-								},
-							},
-						},
-						Footer: &linebot.BoxComponent{
-							Type:   linebot.FlexComponentTypeBox,
-							Layout: linebot.FlexBoxLayoutTypeVertical,
-							Spacing: linebot.FlexComponentSpacingTypeSm,
-							Contents: []linebot.FlexComponent{
-								&linebot.ButtonComponent{
-									Type:  "button",
-									Style: "link",
-									Height: "sm",
-									Action: linebot.NewMessageAction("次の問題", "次へ"),
-								},
-								&linebot.ButtonComponent{
-									Type:  "button",
-									Style: "link",
-									Height: "sm",
-									Action: linebot.NewMessageAction("クイズをやめる", "bye"),
-								},
-							},
-						},
-					},
+					CorrectMessage(answerWaka),
 				)
-				
+
 				if _, err = bot.ReplyMessage(event.ReplyToken, resp).Do(); err != nil {
 					log.Print(err)
 				}
