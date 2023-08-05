@@ -8,7 +8,6 @@ import (
 	"math/rand"
 	"net/http"
 	"os"
-	"reflect"
 	"regexp"
 	"strconv"
 	"time"
@@ -184,7 +183,7 @@ func lineHandler(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 		}	else if event.Type == linebot.EventTypePostback {
-			answerTypes := []string{`^[0-9]{1}$`, `^[0-9]{2}$`, `^false[0-9]{1}$`, `^false[0-9]{2}$`}
+			answerTypes := []string{`^(?:[1-9][0-9]?|100)$`, `^false(?:[1-9][0-9]?|100)$`}
 			// *regexp.Regexp は、regexp パッケージに含まれる Regexp 型へのポインタ
 			var regexps []*regexp.Regexp
 
@@ -198,28 +197,11 @@ func lineHandler(w http.ResponseWriter, r *http.Request) {
 			}
 			
 			// 最終的に消す
-			fmt.Println(event.Postback.Data, ":", reflect.TypeOf(event.Postback.Data))
+			fmt.Println("postbackのdata: " + event.Postback.Data)
 			
 			answerStr := event.Postback.Data
-			// はずれ
-			if regexps[2].MatchString(answerStr) || regexps[3].MatchString(answerStr) {
-				answerNum, err := strconv.Atoi(answerStr[5:])
-				if err != nil {
-					fmt.Println("変換エラー:", err)
-					return
-				}
-				answerWaka := masterData[answerNum - 1]
-
-				resp := linebot.NewFlexMessage(
-					"this is a flex message",
-					FalseMessage(answerWaka),
-				)
-				
-				if _, err = bot.ReplyMessage(event.ReplyToken, resp).Do(); err != nil {
-					log.Print(err)
-				}
 			// 正解
-			} else if regexps[0].MatchString(answerStr) || regexps[1].MatchString(answerStr) {
+			if regexps[0].MatchString(answerStr) {
 				fmt.Println(answerStr)
 
 				answerNum, err := strconv.Atoi(answerStr)
@@ -232,7 +214,31 @@ func lineHandler(w http.ResponseWriter, r *http.Request) {
 					"this is a flex message",
 					CorrectMessage(answerWaka),
 				)
+				if _, err = bot.ReplyMessage(event.ReplyToken, resp).Do(); err != nil {
+					log.Print(err)
+				}
+			// はずれ
+			} else if regexps[1].MatchString(answerStr) {
+				answerNum, err := strconv.Atoi(answerStr[5:])
+				if err != nil {
+					fmt.Println("変換エラー:", err)
+					return
+				}
+				answerWaka := masterData[answerNum - 1]
 
+				resp := linebot.NewFlexMessage(
+					"this is a flex message",
+					FalseMessage(answerWaka),
+				)
+				if _, err = bot.ReplyMessage(event.ReplyToken, resp).Do(); err != nil {
+					log.Print(err)
+				}
+			} else if answerStr == "bye" {
+				fmt.Println("byebye")
+				resp := linebot.NewFlexMessage(
+					"this is a flex message",
+					QuitPlaying(),
+				)
 				if _, err = bot.ReplyMessage(event.ReplyToken, resp).Do(); err != nil {
 					log.Print(err)
 				}

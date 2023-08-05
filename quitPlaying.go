@@ -4,20 +4,13 @@ import (
 	"github.com/line/line-bot-sdk-go/linebot"
 )
 
-func FalseMessage(w Waka) linebot.FlexContainer {
+func QuitPlaying() linebot.FlexContainer {
 	return &linebot.BubbleContainer{
 		Type: linebot.FlexContainerTypeBubble,
 		Body: &linebot.BoxComponent{
 			Type:   "box",
 			Layout: "vertical",
 			Contents: []linebot.FlexComponent{
-				&linebot.TextComponent{
-					Type:   "text",
-					Text:   "残念、正解は…",
-					Weight: "bold",
-					Size:   "xl",
-					Align: "center",
-				},
 				&linebot.BoxComponent{
 					Type:     "box",
 					Layout:   "vertical",
@@ -26,21 +19,7 @@ func FalseMessage(w Waka) linebot.FlexContainer {
 					Contents: []linebot.FlexComponent{
 						&linebot.TextComponent{
 							Type:   "text",
-							Text:   "上の句：" + w.Kami,
-							Wrap:   true,
-							Color:  "#666666",
-							Size:   "sm",
-						},
-						&linebot.TextComponent{
-							Type:   "text",
-							Text:   "下の句：" + w.Simo,
-							Wrap:   true,
-							Color:  "#666666",
-							Size:   "sm",
-						},
-						&linebot.TextComponent{
-							Type:   "text",
-							Text:   "作者：" + w.Author,
+							Text:   "また始めるときは下のボタンを押してくださいね！",
 							Wrap:   true,
 							Color:  "#666666",
 							Size:   "sm",
@@ -58,13 +37,7 @@ func FalseMessage(w Waka) linebot.FlexContainer {
 					Type:  "button",
 					Style: "link",
 					Height: "sm",
-					Action: linebot.NewMessageAction("次の問題", "次へ"),
-				},
-				&linebot.ButtonComponent{
-					Type:  "button",
-					Style: "link",
-					Height: "sm",
-					Action: linebot.NewPostbackAction("クイズをやめる", "bye", "", ""),
+					Action: linebot.NewMessageAction("問題を始める", "スタート"),
 				},
 			},
 		},

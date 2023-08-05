@@ -57,7 +57,7 @@ func CorrectMessage(w Waka) linebot.FlexContainer {
 					Type:  "button",
 					Style: "link",
 					Height: "sm",
-					Action: linebot.NewMessageAction("クイズをやめる", "bye"),
+					Action: linebot.NewPostbackAction("クイズをやめる", "bye", "", ""),
 				},
 			},
 		},
