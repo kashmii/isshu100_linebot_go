@@ -11,7 +11,9 @@ func GetRandomWakas(slice []Waka, numElements int) []Waka {
 		return []Waka{}
 	}
 
-	rand.Seed(time.Now().UnixNano()) // ランダムシードを設定
+	source := rand.NewSource(time.Now().UnixNano())
+	rand.New(source)
+
 	result := make([]Waka, numElements)
 
 	// ランダムなインデックスを生成して、対応する要素を新しいスライスに追加
