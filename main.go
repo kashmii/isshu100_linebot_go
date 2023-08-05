@@ -12,7 +12,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/joho/godotenv"
 	"github.com/line/line-bot-sdk-go/linebot"
 )
 
@@ -34,10 +33,11 @@ type Choice struct {
 }
 
 func main() {
-	err := godotenv.Load(".env")
-	if err != nil {
-		panic("Error loading .env file")
-	}
+	// 本番環境ではこれは使えないぽい
+	// err := godotenv.Load(".env")
+	// if err != nil {
+	// 	panic("Error loading .env file")
+	// }
 
 	// ハンドラの登録
 	http.HandleFunc("/callback", lineHandler)
