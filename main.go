@@ -4,7 +4,8 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	// "github.com/joho/godotenv"
+
+	"github.com/joho/godotenv"
 )
 
 type Waka struct {
@@ -26,10 +27,10 @@ type Choice struct {
 
 func main() {
 	// 本番環境ではこれは使えないぽい
-	// err := godotenv.Load(".env")
-	// if err != nil {
-	// 	panic("Error loading .env file")
-	// }
+	err := godotenv.Load(".env")
+	if err != nil {
+		panic("Error loading .env file")
+	}
 
 	// ハンドラの登録
 	http.HandleFunc("/callback", LineHandler)

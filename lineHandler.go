@@ -10,6 +10,7 @@ import (
 	"os"
 	"regexp"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/line/line-bot-sdk-go/linebot"
@@ -34,30 +35,45 @@ func LineHandler(w http.ResponseWriter, r *http.Request) {
 		log.Fatal(err)
 	}
 
-	// ===============
-	// JSONファイルを読み込む
-	file, err := os.Open("master.json")
+	// =============
+	// 外部APIをたたく
+	method := "GET"
+	url := "https://api.aoikujira.com/hyakunin/get2.php?fmt=json"
+	req, err := http.NewRequest(method, url, nil)
 	if err != nil {
-		fmt.Println("JSONファイルをオープンできませんでした:", err)
-		return
-	}
-	defer file.Close()
-
-	// ファイル内容をバイト配列に読み込む
-	data, err := io.ReadAll(file)
-	if err != nil {
-		fmt.Println("JSONファイルの読み込みに失敗しました:", err)
-		return
+		log.Fatalf("NewRequest err=%s", err.Error())
 	}
 
-	// バイト配列を構造体に変換
+	q := req.URL.Query()
+	req.URL.RawQuery = q.Encode()
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Fatalf("Client.Do err=%s", err.Error())
+	}
+	defer resp.Body.Close()
+
+	// bodyの型： []byte
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		log.Fatalf("ioutil.ReadAll err=%s", err.Error())
+	}
+	// ここでバックスラッシュにもう一つ重ねられたらうまくエスケープできるようになる
+	// JSON文字列内の \/ を \/ の前に \ を追加して置換
+	body = []byte(strings.Replace(string(body), `\/`, `/`, -1))
+	// これをしないとlinebot: ... invalid uri scheme というエラーが出る
+	body = []byte(strings.Replace(string(body), `http`, `https`, -1))
+
 	var masterData []Waka
-	err = json.Unmarshal(data, &masterData)
+
+	// jsonバイトから構造体へ変換
+	err = json.Unmarshal(body, &masterData)
 	if err != nil {
-		fmt.Println("JSONデータの解析に失敗しました:", err)
-		return
+		log.Fatalf("json.Unmarshal err=%s", err.Error())
 	}
 	// ===============
+
 	// リクエストからBOTのイベントを取得
 	events, err := bot.ParseRequest(r)
 	if err != nil {
@@ -167,6 +183,7 @@ func LineHandler(w http.ResponseWriter, r *http.Request) {
 			fmt.Println("postbackのdata: " + event.Postback.Data)
 			
 			answerStr := event.Postback.Data
+
 			// 正解
 			if regexps[0].MatchString(answerStr) {
 				fmt.Println(answerStr)

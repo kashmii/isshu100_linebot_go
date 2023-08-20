@@ -1,4 +1,4 @@
-module github.com/kashmii/isshu100_linebot_go
+module main
 
 go 1.20
 
